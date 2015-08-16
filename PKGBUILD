@@ -1,0 +1,45 @@
+# Maintainer: xantares <xantares09 at hotmail dot com>
+
+pkgname=mingw-w64-libftdi1
+pkgver=1.1rc1
+pkgrel=1
+license=('GPL2' 'LGPL2.1')
+arch=(any)
+pkgdesc='Library to talk to FTDI chips (mingw-w64)'
+url='http://www.intra2net.com/en/developer/libftdi/'
+depends=('mingw-w64-crt' 'mingw-w64-libusbx')
+optdepends=('mingw-w64-python: python bindings')
+makedepends=('mingw-w64-confuse' 'mingw-w64-cmake' 'mingw-w64-boost' 'git')
+options=('!strip' '!buildflags' 'staticlibs')
+source=(http://www.intra2net.com/en/developer/libftdi/download/libftdi1-$pkgver.tar.bz2)
+sha1sums=('76b1d79708a076f8613eb9ef1776cf0084541d01')
+
+_architectures="i686-w64-mingw32 x86_64-w64-mingw32"
+
+build() {
+  cd libftdi1-1.1
+  sed -i "s|COMMAND \${PYTHON_EXECUTABLE}|COMMAND wine \${PYTHON_EXECUTABLE}|g" python/CMakeLists.txt
+  for _arch in ${_architectures}; do
+    unset LDFLAGS
+    mkdir -p build-${_arch} && pushd build-${_arch}
+    cp /usr/${_arch}/*/*.dll .
+    ${_arch}-cmake \
+      -DEXAMPLES=OFF \
+      -DPYTHON_EXECUTABLE=/usr/${_arch}/bin/python3.exe \
+      ..
+    cp /usr/${_arch}/*/*.dll python
+    make
+    popd
+  done
+}
+
+package() {
+  for _arch in ${_architectures}; do
+    cd "$srcdir/libftdi1-1.1/build-${_arch}"
+    make install DESTDIR="$pkgdir"
+    ${_arch}-strip --strip-unneeded "$pkgdir"/usr/${_arch}/bin/*.dll
+    ${_arch}-strip -g "$pkgdir"/usr/${_arch}/lib/*.a
+    ${_arch}-strip "$pkgdir"/usr/${_arch}/bin/*.exe
+  done
+}
+
